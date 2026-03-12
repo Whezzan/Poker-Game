@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+  <section id="login">
+    <h1>Log in</h1>
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button id="loginBtn">Log in</button>
+    <button id="registerBtn" type="button">Create account</button>
+  </section>
+
+  <section id="game" class="hidden">
+    <h2>Texas Hold'em</h2>
+
+    <div id="communityArea">
+      <h3 id="communityCardsHeader">Community cards</h3>
+      <div id="communityCards"></div>
+    </div>
+
+    <div id="computerAreaLeft" class="computerArea">
+      <h3 id="computerHeaderLeft" class="computerHeader">Computer 1</h3>
+      <div id="computerActionLeft" class="computerAction"></div>
+      <div id="computerBalanceLeft" class="computerBalance">Balance: 0 SEK</div>
+      <div id="computerCardsLeft" class="computerCards"></div>
+    </div>
+
+    <div id="computerAreaTop" class="computerArea">
+      <h3 id="computerHeaderTop" class="computerHeader">Computer 2</h3>
+      <div id="computerActionTop" class="computerAction"></div>
+      <div id="computerBalanceTop" class="computerBalance">Balance: 0 SEK</div>
+      <div id="computerCardsTop" class="computerCards"></div>
+    </div>
+
+    <div id="computerAreaRight" class="computerArea">
+      <h3 id="computerHeaderRight" class="computerHeader">Computer 3</h3>
+      <div id="computerActionRight" class="computerAction"></div>
+      <div id="computerBalanceRight" class="computerBalance">Balance: 0 SEK</div>
+      <div id="computerCardsRight" class="computerCards"></div>
+    </div>
+
+    <div id="pot">Pot: 0 SEK</div>
+
+    <div id="playerHud">
+      <div id="playerTopBar">
+        <div id="playerBalanceRow">
+          <div id="balance">Balance: 0 SEK</div>
+          <button id="addMoneyBtn">Add money</button>
+        </div>
+        <div id="betControls">
+          <div id="blindInfo"></div>
+          <button id="dealBtn">Deal</button>
+        </div>
+      </div>
+
+      <div id="playerArea">
+        <h3 id="playerCardsHeader">Your cards</h3>
+        <div id="raisePanel" class="hidden">
+          <input id="raiseSlider" type="range" min="50" value="50">
+          <div id="raiseMeta">
+            <div id="raiseValue">Raise: 50</div>
+            <button id="confirmRaiseBtn" type="button">Raise</button>
+          </div>
+        </div>
+        <div id="playerCardsRow">
+          <div id="playerCards"></div>
+        </div>
+
+        <div id="actions">
+          <button id="checkBtn">Check</button>
+          <button id="callBtn">Call</button>
+          <button id="raiseBtn">Raise</button>
+          <button id="foldBtn">Fold</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="result"></div>
+
+
+    <button id="playAgainBtn" class="hidden">Play again</button>
+    <div id="playAgainHint">Reset blinds/money</div>
+  </section>
+
+  <script src="./JS/auth.js"></script>
+  <script src="./JS/game.js"></script>
+  <script src="./JS/ui.js"></script>
+</body>
+</html>

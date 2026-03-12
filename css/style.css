@@ -1,0 +1,366 @@
+body {
+  --table-green: #0b3d2e;
+  background-color: var(--table-green);
+  background-image: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--table-green) 75%, rgb(91, 224, 120)) 0%,
+    var(--table-green) 70%
+  );
+  background-attachment: fixed;
+  color: rgb(217, 218, 205);
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+:root {
+  --ui-scale: 1;
+}
+
+/* Uniformly shrink the fixed-position game UI to preserve layout. */
+#communityArea,
+.computerArea,
+#playerHud,
+#pot,
+#result {
+  scale: var(--ui-scale);
+}
+
+#communityArea {
+  transform-origin: center;
+}
+
+.computerArea {
+  transform-origin: top left;
+}
+
+#playerHud {
+  transform-origin: bottom center;
+}
+
+#pot,
+#result {
+  transform-origin: top center;
+}
+
+#game {
+  padding-bottom: 300px;
+}
+
+
+.hidden {
+  display: none;
+}
+
+#playerHud {
+  --card-w: 96px;
+  --card-h: 140px;
+  --card-gap: 12px;
+  --action-gap: 8px;
+  --action-btn-w: 92px;
+
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+
+  width: max(
+    calc((var(--card-w) * 2) + var(--card-gap) + 24px),
+    calc((var(--action-btn-w) * 4) + (var(--action-gap) * 3) + 24px)
+  );
+  max-width: calc(100vw - 24px);
+  z-index: 1000;
+}
+
+#playerArea {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid white;
+  border-radius: 5px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#playerTopBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+#playerBalanceRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#playerBalanceRow button {
+  flex: 0 0 auto;
+}
+
+#betControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#blindInfo {
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  #playerTopBar {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+  }
+
+  #playerBalanceRow {
+    justify-content: center;
+  }
+
+  #betControls {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  #blindInfo {
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+
+
+#playerCardsHeader {
+  margin: 0 0 8px 0;
+  text-align: center;
+}
+
+#raisePanel {
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px 0;
+}
+
+#raisePanel:not(.hidden) {
+  display: flex;
+}
+
+#raiseSlider {
+  flex: 1;
+  min-width: 120px;
+}
+
+#raiseMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+#raiseValue {
+  white-space: nowrap;
+}
+
+#playerCardsRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#playerCards {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--card-gap);
+  width: calc((var(--card-w) * 2) + var(--card-gap));
+  min-height: var(--card-h);
+  flex-wrap: nowrap;
+}
+
+#actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: var(--action-gap);
+  margin-top: 10px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#actions button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+#playerCards:empty::before,
+#playerCards:empty::after {
+  content: "";
+  width: var(--card-w);
+  height: var(--card-h);
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+}
+
+#playerCards img,
+#communityCards img {
+  width: 96px;
+  margin: 6px;
+}
+
+.computerArea {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid white;
+  border-radius: 5px;
+  width: fit-content;
+  max-width: calc(100vw - 24px);
+  position: fixed;
+  z-index: 5;
+}
+
+.computerHeader {
+  margin: 0 0 8px 0;
+  text-align: center;
+}
+
+.computerBalance {
+  margin: 0 0 8px 0;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.computerAction {
+  margin: 0 0 8px 0;
+  text-align: center;
+  font-weight: 700;
+  min-height: 1.2em;
+}
+
+.computerCards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 140px;
+}
+
+.computerCards img {
+  width: 96px;
+  margin: 0;
+}
+
+.computerCards .card-slot {
+  width: 96px;
+  height: 140px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 6px;
+}
+
+#communityArea {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid white;
+  border-radius: 5px;
+  width: fit-content;
+  max-width: calc(100vw - 24px);
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  z-index: 5;
+}
+
+#communityCardsHeader {
+  margin: 0 0 8px 0;
+  text-align: center;
+}
+
+#communityCards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 140px;
+}
+
+#communityCards img {
+  width: 96px;
+  margin: 0;
+}
+
+#communityCards .card-slot {
+  width: 96px;
+  height: 140px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+}
+
+#pot {
+  text-align: center;
+  margin-top: 10px;
+}
+
+#result {
+  text-align: center;
+  max-width: calc(100vw - 24px);
+}
+
+#playerCards img {
+  width: var(--card-w);
+  margin: 0;
+}
+
+#playerCards img {
+  border: 2px solid palegoldenrod;
+  border-radius: 5px;
+}
+
+h2 {
+  margin-top: 20px;
+  text-align: center;
+}
+
+#login {
+  text-align: center;
+  margin-top: 100px;
+}
+
+#login input {
+  display: block;
+  margin: 10px auto;
+  padding: 10px;
+  width: 200px;
+  border-radius: 5px;
+}
+
+#login button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+#login button:hover {
+  background-color: #45a049;
+}
+
+#playAgainHint {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.2;
+  opacity: 0.85;
+}
+
+#playAgainBtn.hidden + #playAgainHint {
+  display: none;
+}
+
