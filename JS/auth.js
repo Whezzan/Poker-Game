@@ -1,104 +1,187 @@
+const PokerAuth = (() => {
+  const STORAGE_KEYS = {
+    users: "users",
+    currentUser: "currentUser"
+  };
+  const DEFAULT_BALANCE = 1000;
+  const defaultUsers = [
+    { username: "admin", password: "1234", balance: DEFAULT_BALANCE }
+  ];
 
-// Skapa en array med användare och spara i localStorage (seedar bara om den saknas).
-
-const defaultUsers = [
-  { username: "admin", password: "1234", balance: 1000 }
-];
-
-if (!localStorage.getItem("users")) {
-  localStorage.setItem("users", JSON.stringify(defaultUsers));
-}
-
-function enterGameAs(user) {
-  localStorage.setItem("currentUser", JSON.stringify(user));
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("game").classList.remove("hidden");
-
-  // Position fixed play-area panels after #game is visible.
-  requestAnimationFrame(() => {
-    if (typeof positionComputerAreasAroundCommunity === "function") {
-      positionComputerAreasAroundCommunity();
+  // Utilities
+  function safeParse(value, fallback) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
     }
-    if (typeof positionPotUnderCommunity === "function") {
-      positionPotUnderCommunity();
+  }
+
+  function normalizeBalance(balance) {
+    const numericBalance = Number(balance);
+    if (!Number.isFinite(numericBalance)) return DEFAULT_BALANCE;
+    return Math.max(0, Math.floor(numericBalance));
+  }
+
+  function sanitizeUser(user) {
+    if (!user || typeof user !== "object") return null;
+
+    const username = String(user.username || "").trim();
+    const password = String(user.password || "");
+    if (!username || !password) return null;
+
+    return {
+      username,
+      password,
+      balance: normalizeBalance(user.balance)
+    };
+  }
+
+  // Storage
+  function readUsers() {
+    const parsed = safeParse(localStorage.getItem(STORAGE_KEYS.users), []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(sanitizeUser).filter(Boolean);
+  }
+
+  function writeUsers(users) {
+    const safeUsers = Array.isArray(users)
+      ? users.map(sanitizeUser).filter(Boolean)
+      : [];
+    localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(safeUsers));
+    return safeUsers;
+  }
+
+  function seedDefaultUsers() {
+    if (!localStorage.getItem(STORAGE_KEYS.users)) {
+      writeUsers(defaultUsers);
     }
-    if (typeof positionResultAboveCommunity === "function") {
-      positionResultAboveCommunity();
+  }
+
+  // Session
+  function findUserIndex(users, username) {
+    return users.findIndex((user) => user.username.toLowerCase() === username.toLowerCase());
+  }
+
+  function getCurrentUser() {
+    return sanitizeUser(safeParse(localStorage.getItem(STORAGE_KEYS.currentUser), null));
+  }
+
+  function saveCurrentUser(user) {
+    const safeUser = sanitizeUser(user);
+    if (!safeUser) return null;
+
+    localStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(safeUser));
+
+    const users = readUsers();
+    const userIndex = findUserIndex(users, safeUser.username);
+    if (userIndex === -1) {
+      users.push(safeUser);
+    } else {
+      users[userIndex] = { ...users[userIndex], ...safeUser };
     }
-  });
+    writeUsers(users);
 
-  if (typeof setActionsEnabled === "function") {
-    setActionsEnabled(false);
-  }
-  if (typeof updatePot === "function") {
-    updatePot(0);
-  }
-  if (typeof showCards === "function") {
-    showCards("playerCards", []);
-    showCards("computerCardsTop", [], 2);
-    showCards("computerCardsLeft", [], 2);
-    showCards("computerCardsRight", [], 2);
-    showCards("communityCards", [], 5);
+    return safeUser;
   }
 
-  if (window.pokerGame && typeof updateBlindBadges === "function") {
-    const state = window.pokerGame.getPublicState({ revealComputer: false });
-    updateBlindBadges(state);
-    if (typeof updateBlindInfo === "function") updateBlindInfo(state);
-    if (typeof updateComputerBalances === "function") updateComputerBalances(state);
-    if (typeof updateComputerActions === "function") updateComputerActions(state);
-  }
-  document.getElementById("result").innerText = "";
-  document.getElementById("playAgainBtn").classList.add("hidden");
-
-  if (typeof updateBalance === "function") {
-    updateBalance();
-  }
-}
-
-// Inloggningsfunktion
-
-document.getElementById("loginBtn").addEventListener("click", () => {
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-
-  const storedUsers = JSON.parse(localStorage.getItem("users")) || [];
-  const user = storedUsers.find(u => u.username === username && u.password === password);
-
-  if (user) {
-    enterGameAs(user);
-  } else {
-    alert("Incorrect username or password");
-  }
-});
-
-// Logga in med Enter i lösenordsfältet
-document.getElementById("password").addEventListener("keydown", (e) => {
-  if (e.key !== "Enter") return;
-  e.preventDefault();
-  document.getElementById("loginBtn").click();
-});
-
-// Skapa konto
-document.getElementById("registerBtn").addEventListener("click", () => {
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value;
-
-  if (!username || !password) {
-    alert("Enter both a username and a password.");
-    return;
+  function clearCurrentUser() {
+    localStorage.removeItem(STORAGE_KEYS.currentUser);
   }
 
-  const storedUsers = JSON.parse(localStorage.getItem("users")) || [];
-  const exists = storedUsers.some(u => (u.username || "").toLowerCase() === username.toLowerCase());
-  if (exists) {
-    alert("That username is already taken. Please choose another.");
-    return;
+  function logout() {
+    clearCurrentUser();
+    return { ok: true };
   }
 
-  const newUser = { username, password, balance: 1000 };
-  storedUsers.push(newUser);
-  localStorage.setItem("users", JSON.stringify(storedUsers));
+  function hasActiveSession() {
+    return !!getCurrentUser();
+  }
 
-  enterGameAs(newUser);
-});
+  // Authentication
+  function login({ username, password }) {
+    const trimmedUsername = String(username || "").trim();
+    const rawPassword = String(password || "");
+
+    if (!trimmedUsername || !rawPassword) {
+      return { ok: false, error: "Enter both a username and a password." };
+    }
+
+    const users = readUsers();
+    const user = users.find(
+      (candidate) => candidate.username === trimmedUsername && candidate.password === rawPassword
+    );
+
+    if (!user) {
+      return { ok: false, error: "Incorrect username or password" };
+    }
+
+    return { ok: true, user: saveCurrentUser(user) };
+  }
+
+  function register({ username, password }) {
+    const trimmedUsername = String(username || "").trim();
+    const rawPassword = String(password || "");
+
+    if (!trimmedUsername || !rawPassword) {
+      return { ok: false, error: "Enter both a username and a password." };
+    }
+
+    const users = readUsers();
+    if (findUserIndex(users, trimmedUsername) !== -1) {
+      return { ok: false, error: "That username is already taken. Please choose another." };
+    }
+
+    const user = sanitizeUser({
+      username: trimmedUsername,
+      password: rawPassword,
+      balance: DEFAULT_BALANCE
+    });
+
+    users.push(user);
+    writeUsers(users);
+
+    return { ok: true, user: saveCurrentUser(user) };
+  }
+
+  // Balance
+  function updateCurrentUserBalance(balance) {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return null;
+
+    currentUser.balance = normalizeBalance(balance);
+    return saveCurrentUser(currentUser);
+  }
+
+  function addMoney(amount = DEFAULT_BALANCE) {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return null;
+
+    currentUser.balance = normalizeBalance(currentUser.balance + normalizeBalance(amount));
+    return saveCurrentUser(currentUser);
+  }
+
+  function resetCurrentUserBalance() {
+    return updateCurrentUserBalance(DEFAULT_BALANCE);
+  }
+
+  // Bootstrap
+  seedDefaultUsers();
+
+  // Exports
+  return {
+    DEFAULT_BALANCE,
+    addMoney,
+    clearCurrentUser,
+    getCurrentUser,
+    hasActiveSession,
+    login,
+    logout,
+    register,
+    saveCurrentUser,
+    updateCurrentUserBalance,
+    resetCurrentUserBalance
+  };
+})();
+
+window.PokerAuth = PokerAuth;
