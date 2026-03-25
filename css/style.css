@@ -1,3 +1,4 @@
+/* Main Style */
 body {
   --table-green: #0b3d2e;
   background-color: var(--table-green);
@@ -11,11 +12,6 @@ body {
   font-family: "Segoe UI", Tahoma, sans-serif;
 }
 
-:root {
-  --ui-scale: 1;
-}
-
-/* Uniformly shrink the fixed-position game UI to preserve layout. */
 #communityArea,
 .computerArea,
 #playerHud,
@@ -45,11 +41,21 @@ body {
   padding-bottom: 300px;
 }
 
+#logoutBtn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 1100;
+  padding: 6px 12px;
+}
+
 
 .hidden {
   display: none;
 }
 
+
+/* Player HUD */
 #playerHud {
   --card-w: 96px;
   --card-h: 140px;
@@ -68,22 +74,25 @@ body {
   );
   max-width: calc(100vw - 24px);
   z-index: 1000;
+  will-change: transform;
 }
 
+/* Player Area */
 #playerArea {
   box-sizing: border-box;
   padding: 10px 12px;
-  border: 1px solid white;
-  border-radius: 5px;
+  border: 5px solid white;
+  border-radius: 15px;
   width: 100%;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
 }
 
 #playerTopBar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   margin-bottom: 8px;
 }
@@ -91,7 +100,9 @@ body {
 #playerBalanceRow {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
+  margin: 0 0 8px 0;
 }
 
 #playerBalanceRow button {
@@ -100,15 +111,32 @@ body {
 
 #betControls {
   display: flex;
-  align-items: center;
+  flex: 1;
+  align-items: flex-end;
   gap: 8px;
 }
 
 #blindInfo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
 }
 
+.blind-seat-indicator {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  pointer-events: none;
+  flex: 0 0 auto;
+}
+
 @media (max-width: 720px) {
+  #logoutBtn {
+    top: 12px;
+    left: 12px;
+  }
+
   #playerTopBar {
     flex-direction: column;
     justify-content: center;
@@ -117,12 +145,8 @@ body {
     text-align: center;
   }
 
-  #playerBalanceRow {
-    justify-content: center;
-  }
-
   #betControls {
-    justify-content: center;
+    justify-content: flex-end;
     flex-wrap: wrap;
   }
 
@@ -132,43 +156,43 @@ body {
   }
 }
 
-
-
 #playerCardsHeader {
   margin: 0 0 8px 0;
   text-align: center;
 }
 
 #raisePanel {
-  align-items: center;
+  flex: 1;
+  align-items: flex-end;
   gap: 10px;
-  margin: 0 0 10px 0;
 }
 
 #raisePanel:not(.hidden) {
   display: flex;
 }
 
-#raiseSlider {
+#raiseSliderWrapper {
+  display: flex;
   flex: 1;
-  min-width: 120px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
-#raiseMeta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+#raiseSlider {
+  width: 100%;
 }
 
 #raiseValue {
   white-space: nowrap;
+  text-align: center;
 }
 
 #playerCardsRow {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 12px;
 }
 
 #playerCards {
@@ -212,15 +236,19 @@ body {
   margin: 6px;
 }
 
+/* Computer Areas */
 .computerArea {
   box-sizing: border-box;
   padding: 10px 12px;
-  border: 1px solid white;
-  border-radius: 5px;
+  border: 2px solid white;
+  border-radius: 15px;
   width: fit-content;
   max-width: calc(100vw - 24px);
   position: fixed;
+  overflow: visible;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   z-index: 5;
+  will-change: transform;
 }
 
 .computerHeader {
@@ -230,9 +258,25 @@ body {
 
 .computerBalance {
   margin: 0 0 8px 0;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   white-space: nowrap;
   opacity: 0.9;
+}
+
+.chip-icon {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+#balance {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .computerAction {
@@ -262,19 +306,37 @@ body {
   border-radius: 6px;
 }
 
+/* Blinds */
+.blind-card-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.blind-card-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Community Area */
 #communityArea {
-  box-sizing: border-box;
-  padding: 10px 12px;
-  border: 1px solid white;
-  border-radius: 5px;
+  padding: 10px 60px;
+  border: 5px solid white;
+  border-radius: 15px;
   width: fit-content;
   max-width: calc(100vw - 24px);
   position: fixed;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   margin: 0;
   z-index: 5;
+  will-change: transform;
 }
 
 #communityCardsHeader {
@@ -302,29 +364,54 @@ body {
   border-radius: 6px;
 }
 
+/* Pot */
 #pot {
   text-align: center;
-  margin-top: 10px;
+  margin-bottom: 6px;
 }
 
+.side-pot {
+  color: #f0c040;
+  font-weight: bold;
+}
+
+/* Result */
 #result {
   text-align: center;
   max-width: calc(100vw - 24px);
 }
 
-#playerCards img {
-  width: var(--card-w);
-  margin: 0;
+#playerCards img:hover {
+  transform: translateY(-6px) scale(1.05);
+  transition: 0.15s ease;
 }
 
 #playerCards img {
-  border: 2px solid palegoldenrod;
+  border: 2px solid white;
   border-radius: 5px;
+  padding: 3px;
 }
 
+/* Logo */
 h2 {
-  margin-top: 20px;
+  margin-top: 100px;
   text-align: center;
+  font-size: 50px;
+  font-weight: bolder;
+  font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+  position: relative;
+}
+
+h2::before {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -60%);
+  width: 180px;
+  height: 180px;
+  background: url("../assets/chips/ChipstackL.png") center / contain no-repeat;
+  opacity: 0.50;
+  z-index: -1;
 }
 
 #login {
@@ -354,13 +441,23 @@ h2 {
 }
 
 #playAgainHint {
-  margin-top: 4px;
+  position: fixed;
+  top: 96px;
+  left: 20px;
+  z-index: 1100;
   font-size: 12px;
   line-height: 1.2;
   opacity: 0.85;
 }
 
+#playAgainBtn {
+  padding: 6px 12px;
+  position: fixed;
+  top: 60px;
+  left: 20px;
+  z-index: 1100;
+}
+
 #playAgainBtn.hidden + #playAgainHint {
   display: none;
 }
-
