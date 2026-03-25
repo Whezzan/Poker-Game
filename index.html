@@ -17,7 +17,10 @@
   </section>
 
   <section id="game" class="hidden">
+    <button id="logoutBtn" class="hidden" type="button">Log out</button>
     <h2>Texas Hold'em</h2>
+
+    <div id="pot">Pot: 0 SEK</div>
 
     <div id="communityArea">
       <h3 id="communityCardsHeader">Community cards</h3>
@@ -45,28 +48,33 @@
       <div id="computerCardsRight" class="computerCards"></div>
     </div>
 
-    <div id="pot">Pot: 0 SEK</div>
+    <div id="computerAreaBottomRight" class="computerArea">
+      <h3 id="computerHeaderBottomRight" class="computerHeader">Computer 4</h3>
+      <div id="computerActionBottomRight" class="computerAction"></div>
+      <div id="computerBalanceBottomRight" class="computerBalance">Balance: 0 SEK</div>
+      <div id="computerCardsBottomRight" class="computerCards"></div>
+    </div>
 
     <div id="playerHud">
       <div id="playerTopBar">
-        <div id="playerBalanceRow">
-          <div id="balance">Balance: 0 SEK</div>
-          <button id="addMoneyBtn">Add money</button>
-        </div>
         <div id="betControls">
           <div id="blindInfo"></div>
+          <div id="raisePanel" class="hidden">
+            <div id="raiseSliderWrapper">
+              <div id="raiseValue">Raise: 50</div>
+              <input id="raiseSlider" type="range" min="50" value="50">
+            </div>
+            <button id="confirmRaiseBtn" type="button">Raise</button>
+          </div>
           <button id="dealBtn">Deal</button>
         </div>
       </div>
 
       <div id="playerArea">
         <h3 id="playerCardsHeader">Your cards</h3>
-        <div id="raisePanel" class="hidden">
-          <input id="raiseSlider" type="range" min="50" value="50">
-          <div id="raiseMeta">
-            <div id="raiseValue">Raise: 50</div>
-            <button id="confirmRaiseBtn" type="button">Raise</button>
-          </div>
+        <div id="playerBalanceRow">
+          <div id="balance">Balance: 0 SEK</div>
+          <button id="addMoneyBtn">Add money</button>
         </div>
         <div id="playerCardsRow">
           <div id="playerCards"></div>
@@ -84,12 +92,14 @@
     <div id="result"></div>
 
 
-    <button id="playAgainBtn" class="hidden">Play again</button>
+    <button id="playAgainBtn">Play again</button>
     <div id="playAgainHint">Reset blinds/money</div>
   </section>
 
   <script src="./JS/auth.js"></script>
+  <script src="./JS/game-evaluator.js"></script>
   <script src="./JS/game.js"></script>
   <script src="./JS/ui.js"></script>
+  <script src="./JS/controller.js"></script>
 </body>
 </html>
