@@ -412,7 +412,7 @@ const PokerUI = (() => {
       }
 
       const value = normalizedAction(index);
-      action.innerText = value === "CHECK" || value === "CALL" || value === "RAISE" || value === "FOLD"
+      action.innerText = value === "CHECK" || value === "CALL" || value === "RAISE" || value === "FOLD" || value === "ALL IN"
         ? value
         : "";
     });
@@ -451,11 +451,12 @@ const PokerUI = (() => {
   }
 
   function renderBlindBadges(state) {
+    const names = Array.isArray(state?.computerNames) ? state.computerNames : [];
     if (refs.playerCardsHeader) refs.playerCardsHeader.innerText = currentUsername;
-    if (refs.computerHeaderLeft) refs.computerHeaderLeft.innerText = "Computer 1";
-    if (refs.computerHeaderTop) refs.computerHeaderTop.innerText = "Computer 2";
-    if (refs.computerHeaderRight) refs.computerHeaderRight.innerText = "Computer 3";
-    if (refs.computerHeaderBottomRight) refs.computerHeaderBottomRight.innerText = "Computer 4";
+    if (refs.computerHeaderLeft) refs.computerHeaderLeft.innerText = names[0] || "Computer 1";
+    if (refs.computerHeaderTop) refs.computerHeaderTop.innerText = names[1] || "Computer 2";
+    if (refs.computerHeaderRight) refs.computerHeaderRight.innerText = names[2] || "Computer 3";
+    if (refs.computerHeaderBottomRight) refs.computerHeaderBottomRight.innerText = names[3] || "Computer 4";
 
     setCardsBlindIndicator(
       refs.playerCardsRow,
