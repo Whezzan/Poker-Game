@@ -33,6 +33,14 @@ function createDeck() {
   }
   return deck;
 }
+// Fisher-Yates shuffle
+function shuffleDeck(deck, rng) {
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
 
 // Engine
 class PokerGameEngine {
@@ -41,7 +49,12 @@ class PokerGameEngine {
     this.computerCount = Number.isFinite(computerCount) ? Math.max(1, Math.floor(computerCount)) : 3;
     this.playerCount = 1 + this.computerCount;
     this.startingBalance = 1000;
+    this.computerNames = Array.from({ length: this.computerCount }, (_, i) => `Computer ${i + 1}`);
     this.resetTable();
+  }
+
+  getComputerName(index) {
+    return this.computerNames?.[index] || `Computer ${index + 1}`;
   }
 
   // Tracking per-hand participation and last action (for UI).
@@ -49,6 +62,7 @@ class PokerGameEngine {
     
     this.computerInHand = Array.from({ length: this.computerCount }, (_, i) => !!this.computerActive?.[i]);
     this.computerLastActions = Array.from({ length: this.computerCount }, () => "");
+    this.computerPotContributions = Array.from({ length: this.computerCount }, () => 0);
   }
 
   // Balances
@@ -139,9 +153,9 @@ class PokerGameEngine {
     });
   }
 
-  // Helpers
+  // Helper
   formatComputerList(computerIndexes) {
-    const labels = computerIndexes.map((index) => `Computer ${index + 1}`);
+    const labels = computerIndexes.map((index) => this.getComputerName(index));
     if (!labels.length) return "";
     if (labels.length === 1) return labels[0];
     if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
@@ -259,7 +273,7 @@ class PokerGameEngine {
     this.pot = 0;
     this.inHand = false;
 
-    // Simple betting state: when > 0, player must Call or Fold before advancing.
+    // when > 0, player must Call or Fold before advancing.
     this.toCall = 0;
     this.lastComputerRaiserIndex = -1;
     this.lastComputerRaiseAmount = 0;
@@ -268,9 +282,9 @@ class PokerGameEngine {
     // Side pot tracking (created when player goes all-in).
     this.playerAllIn = false;
     this.sidePot = 0;
-    this.sidePotSeats = []; // 1-based seat indexes eligible to win the side pot
+    this.sidePotSeats = []; // seat indexes eligible to win the side pot...
 
-    // Balances (not persisted; UI persists player balance separately).
+    // Balances 
     this.playerBalance = this.normalizeChipAmount(playerBalance, this.startingBalance);
     if (Array.isArray(computerBalances) && computerBalances.length === this.computerCount) {
       this.computerBalances = computerBalances.map(b => this.normalizeChipAmount(b));
@@ -287,7 +301,6 @@ class PokerGameEngine {
     this.handsSinceBlindIncrease = 0;
     this.smallBlind = 10;
     this.bigBlind = 20;
-    // Start with player as small blind (so BB is the seat before player).
     this.bigBlindIndex = this.playerCount > 1 ? (this.playerCount - 1) : 0;
   }
 
@@ -323,9 +336,9 @@ class PokerGameEngine {
       activeComputerCount: this.getActiveComputerCount(),
       activePlayerCount: this.getActivePlayerCount(),
       playerHand: [...this.playerHand],
-      // Back-compat: keep computerHand as "Computer 1".
       computerHand: revealComputer ? [...(safeHands[0] || [])] : [],
       computerHands: revealComputer ? safeHands.map(h => [...h]) : safeHands.map(() => []),
+      computerNames: [...this.computerNames],
       communityCards: [...this.communityCards],
       revealComputer,
       playerAllIn: !!this.playerAllIn,
@@ -346,7 +359,6 @@ class PokerGameEngine {
     this.sidePot = 0;
     this.sidePotSeats = [];
 
-    // Reset per-hand fold/action tracking.
     this.resetHandTracking();
     if (Array.isArray(this.computerLastActions)) {
       for (let i = 0; i < this.computerCount; i++) {
@@ -354,14 +366,14 @@ class PokerGameEngine {
       }
     }
 
-    // Remove busted computers before assigning blinds.
+
     this.pruneBrokeComputers();
     this.ensureBigBlindActive();
     if (this.getActiveComputerCount() <= 0) {
       return { ok: false, error: "Game over. All computers are out." };
     }
 
-    // If a computer cannot afford its blind, eliminate it and retry.
+
     let guard = 0;
     while (guard++ < 20 && this.getActiveComputerCount() > 0) {
       const sbIdx = this.getSmallBlindIndex();
@@ -410,7 +422,7 @@ class PokerGameEngine {
       return { ok: false, error: "You don't have enough money to post the blind." };
     }
 
-    this.deck = createDeck().sort(() => this.rng() - 0.5);
+    this.deck = shuffleDeck(createDeck(), this.rng); // Fisher-Yates shuffle.
     this.playerHand = [this.deck.pop(), this.deck.pop()];
     this.computerHands = Array.from({ length: this.computerCount }, (_, i) => {
       if (!this.computerActive?.[i]) return [];
@@ -431,6 +443,7 @@ class PokerGameEngine {
       if (this.computerActive?.[ci]) {
         this.computerBalances[ci] -= this.smallBlind;
         this.pot += this.smallBlind;
+        this.computerPotContributions[ci] += this.smallBlind;
         if (Array.isArray(this.computerLastActions) && ci < this.computerLastActions.length) {
           this.computerLastActions[ci] = "CALL";
         }
@@ -445,6 +458,7 @@ class PokerGameEngine {
       if (this.computerActive?.[ci]) {
         this.computerBalances[ci] -= this.bigBlind;
         this.pot += this.bigBlind;
+        this.computerPotContributions[ci] += this.bigBlind;
         if (Array.isArray(this.computerLastActions) && ci < this.computerLastActions.length) {
           this.computerLastActions[ci] = "CALL";
         }
@@ -460,24 +474,41 @@ class PokerGameEngine {
   }
 
   // AI
-  // Returns a raise amount for computerIndex: 50% random, 50% scaled to hand strength.
+  shouldComputerAllIn(computerIndex) {
+    const hand = this.computerHands?.[computerIndex] || [];
+    const allCards = getAllCards(hand, this.communityCards || []);
+    const score = allCards.length >= 2 ? evaluateHand(allCards) : 0;
+
+    const bal = Number(this.computerBalances?.[computerIndex]) || 0;
+    const contributed = Number(this.computerPotContributions?.[computerIndex]) || 0;
+
+    if (this.rng() < 0.7) {
+      // Hand-strength based
+      const allInChance = score >= 6 ? 0.9 : score >= 4 ? 0.5 : score >= 2 ? 0.2 : score >= 1 ? 0.1 : 0.03;
+      return this.rng() < allInChance;
+    } else {
+      // Pot-commitment based
+      const totalInvested = contributed + bal;
+      const commitmentRatio = totalInvested > 0 ? contributed / totalInvested : 0;
+      const allInChance = commitmentRatio > 0.6 ? 0.8 : commitmentRatio > 0.4 ? 0.5 : commitmentRatio > 0.2 ? 0.25 : 0.05;
+      return this.rng() < allInChance;
+    }
+  }
+
+
   computeRaiseAmount(computerIndex, minRaise) {
     const bal = Number(this.computerBalances?.[computerIndex]);
     const balance = Number.isFinite(bal) ? Math.floor(bal) : 0;
     const minAmt = Math.max(minRaise, 50);
-
-    // Evaluate current hand strength (hole cards + any community cards dealt so far).
     const hand = this.computerHands?.[computerIndex] || [];
     const allCards = getAllCards(hand, this.communityCards || []);
     const score = allCards.length >= 2 ? evaluateHand(allCards) : 0; // 0 (high card) to 8 (straight flush)
 
     let amount;
     if (this.rng() < 0.5) {
-      // Random: somewhere between minRaise and 3x minRaise.
       const cap = Math.min(balance, minAmt * 3);
       amount = cap <= minAmt ? minAmt : minAmt + Math.floor(this.rng() * (cap - minAmt));
     } else {
-      // Hand-strength: minRaise (score=0) up to 6x minRaise (score=8).
       const multiplier = 1 + (score / 8) * 5;
       amount = Math.floor(minAmt * multiplier);
     }
@@ -488,10 +519,8 @@ class PokerGameEngine {
   maybeComputerRaise() {
     if (!this.inHand) return null;
     if ((Number(this.toCall) || 0) > 0) return null;
-    if (this.round >= 3) return null; // No raises after river in this simplified engine.
-    if (this.raiseStage === this.round) return null; // Max 1 computer raise per stage.
-
-    // Keep it simple: 25% chance that a computer raises when player tries to advance.
+    if (this.round >= 3) return null; 
+    if (this.raiseStage === this.round) return null; 
     if (this.rng() >= 0.25) return null;
 
     const minRaise = Math.max(50, Number(this.bigBlind) || 0);
@@ -506,16 +535,19 @@ class PokerGameEngine {
     if (!raisers.length) return null;
 
     const idx = raisers[Math.floor(this.rng() * raisers.length)];
-    const amount = this.computeRaiseAmount(idx, minRaise);
+    const goAllIn = this.shouldComputerAllIn(idx);
+    const bal = Number(this.computerBalances?.[idx]) || 0;
+    const amount = goAllIn ? bal : this.computeRaiseAmount(idx, minRaise);
 
     this.computerBalances[idx] -= amount;
     this.pot += amount;
+    this.computerPotContributions[idx] += amount;
     this.toCall = amount;
     this.lastComputerRaiserIndex = idx;
     this.lastComputerRaiseAmount = amount;
     this.raiseStage = this.round;
 
-    // Other computers effectively check in this simplified model.
+
     if (Array.isArray(this.computerLastActions)) {
       for (let i = 0; i < this.computerCount; i++) {
         if (i === idx) continue;
@@ -526,14 +558,12 @@ class PokerGameEngine {
     }
 
     if (Array.isArray(this.computerLastActions) && idx < this.computerLastActions.length) {
-      this.computerLastActions[idx] = "RAISE";
+      this.computerLastActions[idx] = goAllIn ? "ALL IN" : "RAISE";
     }
 
-    return { idx, amount };
+    return { idx, amount, allIn: goAllIn };
   }
 
-  // Called automatically when the player is all-in and a computer wants to raise.
-  // The raise goes into the side pot; other computers auto-respond. No player action needed.
   maybeComputerSidePotRaise() {
     if (!this.inHand) return null;
     if (this.round >= 3) return null;
@@ -552,18 +582,20 @@ class PokerGameEngine {
     if (!raisers.length) return null;
 
     const idx = raisers[Math.floor(this.rng() * raisers.length)];
-    const amount = this.computeRaiseAmount(idx, minRaise);
+    const goAllIn = this.shouldComputerAllIn(idx);
+    const idxBal = Number(this.computerBalances?.[idx]) || 0;
+    const amount = goAllIn ? idxBal : this.computeRaiseAmount(idx, minRaise);
 
     this.computerBalances[idx] -= amount;
     this.sidePot += amount;
+    this.computerPotContributions[idx] += amount;
     this.raiseStage = this.round;
     if (!this.sidePotSeats.includes(idx + 1)) this.sidePotSeats.push(idx + 1);
 
     if (Array.isArray(this.computerLastActions) && idx < this.computerLastActions.length) {
-      this.computerLastActions[idx] = "RAISE";
+      this.computerLastActions[idx] = goAllIn ? "ALL IN" : "RAISE";
     }
 
-    // Other computers auto-respond to the side pot raise.
     let sidePotCallers = 0;
     for (let i = 0; i < this.computerCount; i++) {
       if (i === idx) continue;
@@ -572,11 +604,14 @@ class PokerGameEngine {
       const bal = Number(this.computerBalances?.[i]);
       const safe = Number.isFinite(bal) ? Math.floor(bal) : 0;
       if (safe >= amount && this.rng() < 0.7) {
-        this.computerBalances[i] -= amount;
-        this.sidePot += amount;
+        const respAllIn = this.shouldComputerAllIn(i);
+        const respAmount = respAllIn ? safe : amount;
+        this.computerBalances[i] -= respAmount;
+        this.sidePot += respAmount;
+        this.computerPotContributions[i] += respAmount;
         if (!this.sidePotSeats.includes(i + 1)) this.sidePotSeats.push(i + 1);
         if (Array.isArray(this.computerLastActions) && i < this.computerLastActions.length) {
-          this.computerLastActions[i] = "CALL";
+          this.computerLastActions[i] = respAllIn ? "ALL IN" : "CALL";
         }
         sidePotCallers++;
       } else {
@@ -587,11 +622,10 @@ class PokerGameEngine {
       }
     }
 
-    return { idx, amount, sidePotCallers };
+    return { idx, amount, sidePotCallers, allIn: goAllIn };
   }
 
   // Sidepot
-  // Distribute the side pot among the best hand from eligible seats.
   distributeSidePot() {
     const eligible = (this.sidePotSeats || []).filter((seat) => {
       if (seat <= 0) return false;
@@ -607,15 +641,13 @@ class PokerGameEngine {
     }
 
     if (eligible.length === 1) {
-      // Only one claimant: give the side pot back to them.
       const ci = eligible[0] - 1;
       this.computerBalances[ci] += this.sidePot;
       const amount = this.sidePot;
       this.sidePot = 0;
-      return { winners: eligible, message: `Computer ${eligible[0]} takes back the side pot (${amount} SEK, uncalled).` };
+      return { winners: eligible, message: `${this.getComputerName(ci)} takes back the side pot (${amount} SEK, uncalled).` };
     }
 
-    // Find best hand among eligible computer seats.
     const computerIndexes = eligible.map((seat) => seat - 1);
     const winners = [computerIndexes[0]];
     for (let i = 1; i < computerIndexes.length; i++) {
@@ -637,7 +669,7 @@ class PokerGameEngine {
     const bestScore = evaluateHand(getAllCards(this.computerHands[winners[0]], this.communityCards));
     const handName = handRankName(bestScore);
     const msg = winners.length === 1
-      ? `Computer ${winners[0] + 1} wins the side pot (${amount} SEK) with ${handName}!`
+      ? `${this.getComputerName(winners[0])} wins the side pot (${amount} SEK) with ${handName}!`
       : `${this.formatComputerList(winners)} split the side pot (${amount} SEK) with ${handName}!`;
 
     return { winners: winningSeatIndexes, message: msg };
@@ -655,13 +687,13 @@ class PokerGameEngine {
 
     const amount = Number(this.toCall) || 0;
     if (amount <= 0) {
-      // No bet to call; treat as check for back-compat.
+      // No bet to call; treat as check
       return this.check();
     }
 
     const raiserWho = (() => {
       const ci = this.lastComputerRaiserIndex;
-      return Number.isFinite(ci) && ci >= 0 ? `Computer ${ci + 1}` : "Computer";
+      return Number.isFinite(ci) && ci >= 0 ? this.getComputerName(ci) : "Computer";
     })();
 
     if (!this.canPlayerAfford(amount)) {
@@ -676,10 +708,9 @@ class PokerGameEngine {
       this.playerAllIn = true;
       this.toCall = 0;
 
-      // The raiser's uncovered excess and other computers' matching excess go to the side pot.
+     
       if (excess > 0) {
         const raiserSeat = this.lastComputerRaiserIndex >= 0 ? this.lastComputerRaiserIndex + 1 : null;
-        // Move the raiser's un-matchable portion into the side pot.
         this.pot -= excess;
         this.sidePot += excess;
         if (raiserSeat !== null && !this.sidePotSeats.includes(raiserSeat)) {
@@ -693,11 +724,14 @@ class PokerGameEngine {
           const bal = Number(this.computerBalances?.[i]);
           const safe = Number.isFinite(bal) ? Math.floor(bal) : 0;
           if (safe >= excess && this.rng() < 0.7) {
-            this.computerBalances[i] -= excess;
-            this.sidePot += excess;
+            const respAllIn = this.shouldComputerAllIn(i);
+            const respAmount = respAllIn ? safe : excess;
+            this.computerBalances[i] -= respAmount;
+            this.sidePot += respAmount;
+            this.computerPotContributions[i] += respAmount;
             if (!this.sidePotSeats.includes(i + 1)) this.sidePotSeats.push(i + 1);
             if (Array.isArray(this.computerLastActions) && i < this.computerLastActions.length) {
-              this.computerLastActions[i] = "CALL";
+              this.computerLastActions[i] = respAllIn ? "ALL IN" : "CALL";
             }
           } else {
             if (Array.isArray(this.computerInHand) && i < this.computerInHand.length) this.computerInHand[i] = false;
@@ -734,7 +768,7 @@ class PokerGameEngine {
     if (!this.inHand) return { ok: false, error: "No active hand." };
 
     // For clarity, run out the remaining community cards and show a full showdown
-    // between the remaining computers (player has folded).
+    // between the remaining computers when player has folded.
     while ((this.communityCards?.length || 0) < 5 && Array.isArray(this.deck) && this.deck.length) {
       this.communityCards.push(this.deck.pop());
     }
@@ -753,7 +787,7 @@ class PokerGameEngine {
       const winHandName = handRankName(bestComputerScore);
       this.distributePot(this.pot, winningComputerIndexes.map((index) => index + 1));
       message = winningComputerIndexes.length === 1
-        ? `You folded. Computer ${winningComputerIndexes[0] + 1} would have won with ${winHandName}!`
+        ? `You folded. ${this.getComputerName(winningComputerIndexes[0])} would have won with ${winHandName}!`
         : `You folded. ${this.formatComputerList(winningComputerIndexes)} would have split the pot with ${winHandName}!`;
     }
 
@@ -789,16 +823,12 @@ class PokerGameEngine {
       };
     }
 
-    // Player puts in chips: call (if any) + raise.
     this.adjustPlayerBalance(-totalPlayerPutIn);
     this.pot += totalPlayerPutIn;
     this.toCall = 0;
 
     const facingRaiserIdx = pendingCall > 0 ? this.lastComputerRaiserIndex : -1;
 
-    // Simple computer AI: each computer has 70% chance to call.
-    // When re-raising, the original raiser only needs to match the added raise,
-    // while other computers must match (call + raise).
     let callers = 0;
     for (let i = 0; i < this.computerCount; i++) {
       if (!this.computerActive?.[i]) continue;
@@ -812,7 +842,6 @@ class PokerGameEngine {
       const safe = Number.isFinite(bal) ? bal : 0;
 
       if (safe < amountToCall) {
-        // Can't afford: fold this hand.
         if (Array.isArray(this.computerInHand) && i < this.computerInHand.length) this.computerInHand[i] = false;
         if (Array.isArray(this.computerLastActions) && i < this.computerLastActions.length) this.computerLastActions[i] = "FOLD";
         continue;
@@ -820,9 +849,12 @@ class PokerGameEngine {
 
       if (this.rng() < 0.7) {
         callers += 1;
-        this.computerBalances[i] -= amountToCall;
-        this.pot += amountToCall;
-        if (Array.isArray(this.computerLastActions) && i < this.computerLastActions.length) this.computerLastActions[i] = "CALL";
+        const respAllIn = this.shouldComputerAllIn(i);
+        const respAmount = respAllIn ? safe : amountToCall;
+        this.computerBalances[i] -= respAmount;
+        this.pot += respAmount;
+        this.computerPotContributions[i] += respAmount;
+        if (Array.isArray(this.computerLastActions) && i < this.computerLastActions.length) this.computerLastActions[i] = respAllIn ? "ALL IN" : "CALL";
       } else {
         if (Array.isArray(this.computerInHand) && i < this.computerInHand.length) this.computerInHand[i] = false;
         if (Array.isArray(this.computerLastActions) && i < this.computerLastActions.length) this.computerLastActions[i] = "FOLD";
@@ -861,12 +893,9 @@ class PokerGameEngine {
   // Progression
   nextRound(setComputerChecks = true) {
     if (!this.inHand) return { ok: false, error: "No active hand." };
-
-    // When the player is all-in they have no betting action; skip the toCall guard.
     if (!this.playerAllIn && (Number(this.toCall) || 0) > 0) {
       return { ok: false, error: "You must call or fold." };
     }
-    // Clear any residual toCall left over from the all-in call.
     this.toCall = 0;
 
     let sidePotRaiseMessage = "";
@@ -875,7 +904,7 @@ class PokerGameEngine {
       const sidePotRaise = this.maybeComputerSidePotRaise();
       if (sidePotRaise) {
         const callers = sidePotRaise.sidePotCallers;
-        const raiserName = `Computer ${sidePotRaise.idx + 1}`;
+        const raiserName = this.getComputerName(sidePotRaise.idx);
         sidePotRaiseMessage = callers > 0
           ? `${raiserName} raised ${sidePotRaise.amount} SEK into a side pot (${callers} computer${callers > 1 ? "s" : ""} called). `
           : `${raiserName} raised ${sidePotRaise.amount} SEK into a side pot (uncalled). `;
@@ -883,17 +912,16 @@ class PokerGameEngine {
     } else {
       const raise = this.maybeComputerRaise();
       if (raise) {
+        const raiseLabel = raise.allIn ? "went all-in with" : "raised";
         return {
           ok: true,
           balanceDelta: 0,
-          message: `Computer ${raise.idx + 1} raised ${raise.amount} SEK!`,
+          message: `${this.getComputerName(raise.idx)} ${raiseLabel} ${raise.amount} SEK!`,
           state: this.getPublicState({ revealComputer: false })
         };
       }
     }
 
-    // No pending regular raise: treat it as a check from remaining computers.
-    // (Skip when the player action was a CALL or when a side pot raise already set actions.)
     if (setComputerChecks && !sidePotRaiseMessage && Array.isArray(this.computerLastActions)) {
       for (let i = 0; i < this.computerCount; i++) {
         if (!this.computerActive?.[i]) continue;
@@ -936,12 +964,12 @@ class PokerGameEngine {
       if (comparison < 0) {
         winningSeats = winningComputerIndexes.map((index) => index + 1);
         mainPotMessage = winningComputerIndexes.length === 1
-          ? `Computer ${winningComputerIndexes[0] + 1} won${hasSidePot ? " the main pot" : ""} with ${bestHandName}!`
+          ? `${this.getComputerName(winningComputerIndexes[0])} won${hasSidePot ? " the main pot" : ""} with ${bestHandName}!`
           : `${this.formatComputerList(winningComputerIndexes)} split the${hasSidePot ? " main" : ""} pot with ${bestHandName}!`;
       } else if (comparison === 0) {
         winningSeats = [0, ...winningComputerIndexes.map((index) => index + 1)];
         mainPotMessage = winningComputerIndexes.length === 1
-          ? `Split${hasSidePot ? " main" : ""} pot with Computer ${winningComputerIndexes[0] + 1} (${bestHandName}).`
+          ? `Split${hasSidePot ? " main" : ""} pot with ${this.getComputerName(winningComputerIndexes[0])} (${bestHandName}).`
           : `Split${hasSidePot ? " main" : ""} pot with ${this.formatComputerList(winningComputerIndexes)} (${bestHandName}).`;
       } else {
         // Player wins main pot
@@ -957,7 +985,6 @@ class PokerGameEngine {
 
     this.pot = 0;
 
-    // Distribute side pot (only computers in sidePotSeats are eligible).
     let sidePotMessage = "";
     if (hasSidePot) {
       const sidePotResult = this.distributeSidePot();
